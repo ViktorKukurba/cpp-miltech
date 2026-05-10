@@ -70,7 +70,7 @@ void calculate(char* fileName) {
 
     NRKState prev;
     NRKState state;
-    NRKPos prevPos = NRKPos {.x = 0, .y = 0, .theta = 0, .timestamp_ms = 0};
+    NRKPos prevPos = NRKPos { .timestamp_ms = 0, .x = 0, .y = 0, .theta = 0 };
     printPosition(prevPos);
 
     while (file >> state.timestamp_ms >> state.fl_ticks >> state.fr_ticks >> state.bl_ticks >> state.br_ticks) {
