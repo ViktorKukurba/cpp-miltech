@@ -24,22 +24,6 @@ const int ticks_per_revolution = 1024;
 const float wheel_radius_m = 0.3;
 const float wheelbase_m = 1.0;
 
-void readFile(char* fileName, NRKState* states, int& count) {
-    ifstream file(fileName);
-
-    if (!file) {
-        cerr << "No file";
-        return;
-    }
-
-    count = -1;
-
-    do {
-        states[++count] = NRKState {};
-    }
-    while (file >> states[count].timestamp_ms >> states[count].fl_ticks >> states[count].fr_ticks >> states[count].bl_ticks >> states[count].br_ticks);
-}
-
 NRKPos calculatePos(const NRKState& curr, const NRKState& prev, const NRKPos& prevPos) {
         int d_fl = curr.fl_ticks - prev.fl_ticks;
         int d_fr = curr.fr_ticks - prev.fr_ticks;
@@ -106,18 +90,6 @@ void calculate(char* fileName) {
     }
 }
 
-void printStates(NRKState* states, int count) {
-    cout << "States: " << endl;
-    for (int i = 0; i < count; i++) {
-        cout << states[i].timestamp_ms << " ";
-        cout << states[i].fl_ticks << " ";
-        cout << states[i].fr_ticks << " ";
-        cout << states[i].bl_ticks << " ";
-        cout << states[i].br_ticks << endl;
-    }
-    cout << "====" << endl;
-}
-
 int main(int argc, char** argv) {
     // The program expects exactly one argument: a path to telemetry samples.
     if (argc != 2) {
@@ -126,16 +98,28 @@ int main(int argc, char** argv) {
     }
 
     char* filePath = argv[1];
-    NRKState* states = new NRKState[100];
-    int count = 0;
-
-    readFile(filePath, states, count);
     calculate(filePath);
     return 0;
 }
 
 
 // Deprecated array solution
+
+void readFile(char* fileName, NRKState* states, int& count) {
+    ifstream file(fileName);
+
+    if (!file) {
+        cerr << "No file";
+        return;
+    }
+
+    count = -1;
+
+    do {
+        states[++count] = NRKState {};
+    }
+    while (file >> states[count].timestamp_ms >> states[count].fl_ticks >> states[count].fr_ticks >> states[count].bl_ticks >> states[count].br_ticks);
+}
 
 void calculatePositions(NRKState* states, NRKPos* positions, int count) {
     positions[0] = NRKPos {
@@ -151,6 +135,18 @@ void calculatePositions(NRKState* states, NRKPos* positions, int count) {
 
         positions[i] = calculatePos(curr, prev, positions[i - 1]);
     }
+}
+
+void printStates(NRKState* states, int count) {
+    cout << "States: " << endl;
+    for (int i = 0; i < count; i++) {
+        cout << states[i].timestamp_ms << " ";
+        cout << states[i].fl_ticks << " ";
+        cout << states[i].fr_ticks << " ";
+        cout << states[i].bl_ticks << " ";
+        cout << states[i].br_ticks << endl;
+    }
+    cout << "====" << endl;
 }
 
 int main2(int argc, char** argv) {
