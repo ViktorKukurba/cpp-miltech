@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 // Debugging exercise notes:
 // this file intentionally contains four runtime defects.
@@ -43,7 +45,7 @@ long parse_long(const char* text) {
     const long value = std::strtol(text, &end, 10);
 
     if (end == text) {
-        std::abort();
+        throw std::runtime_error(std::string("error: failed to parse long: value = ") + text);
     }
 
     return value;
@@ -58,7 +60,7 @@ double parse_double(const char* text) {
     const double value = std::strtod(text, &end);
 
     if (end == text) {
-        std::abort();
+        throw std::runtime_error(std::string("error: failed to parse double: value = ") + text);
     }
 
     return value;
@@ -68,6 +70,10 @@ Frame parse_frame(char line[]) {
     char* fields[EXPECTED_FIELD_COUNT] = {};
     const int field_count = split_line(line, fields, EXPECTED_FIELD_COUNT);
     (void)field_count;
+
+    if (field_count != 7) {
+        throw std::runtime_error("error: fields count is not equel 7");
+    }
 
     Frame frame{};
     frame.timestamp_ms = parse_long(fields[0]);
@@ -84,6 +90,36 @@ double compute_frame_rate_hz(const Frame frames[], int frame_count) {
     const long elapsed_ms = frames[frame_count - 1].timestamp_ms - frames[0].timestamp_ms;
 
     return static_cast<double>((frame_count - 1) * 1000 / elapsed_ms);
+}
+
+void validate_frame(Frame curr) {
+    if (curr.voltage_v <= 0) {
+        throw std::runtime_error("voltage_v should be greater than 0");
+    }
+    
+    if (curr.temperature_c <= -40 || curr.temperature_c >= 120) {
+        throw std::runtime_error("temperature_c should be in range [-40, 120]");
+    }
+
+    if (!(curr.gps_fix == 0 || curr.gps_fix == 1)) {
+        throw std::runtime_error("gps_fix should be in 0 or 1");
+    }
+
+    if (curr.satellites < 0) {
+        throw std::runtime_error("satellites should be equal or greater than 0");
+    }
+}
+
+void validate_frame(Frame curr, Frame prev) {
+    if (curr.timestamp_ms <= prev.timestamp_ms) {
+        throw std::runtime_error("timestamp_ms should raise");
+    }
+
+    if (curr.seq - prev.seq != 1) {
+        throw std::runtime_error("seq should be incremented by 1");
+    }
+
+    validate_frame(curr);
 }
 
 int read_frames(const char* path, Frame frames[], int max_frames) {
@@ -103,6 +139,11 @@ int read_frames(const char* path, Frame frames[], int max_frames) {
 
         if (frame_count < max_frames) {
             frames[frame_count] = parse_frame(line);
+            if (frame_count == 0) {
+                validate_frame(frames[frame_count]);
+            } else {
+                validate_frame(frames[frame_count], frames[frame_count - 1]);
+            }
             ++frame_count;
         }
     }
