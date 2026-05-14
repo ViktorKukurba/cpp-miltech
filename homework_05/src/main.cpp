@@ -10,14 +10,22 @@ int main(int argc, char** argv) {
     }
 
     Frame frames[MAX_TELEMETRY_FRAMES];
-    const int frame_count = read_frames(argv[1], frames, MAX_TELEMETRY_FRAMES);
+    try {
+        const int frame_count = read_frames(argv[1], frames, MAX_TELEMETRY_FRAMES);
 
-    if (frame_count == 0) {
-        std::cerr << "error: empty file\n";
+        if (frame_count == 0) {
+            std::cerr << "error: empty file\n";
+            return 1;
+        }
+    
+        const Summary summary = summarize(frames, frame_count);
+        print_summary(summary);
+    } catch (const std::runtime_error& e) {
+        std::cerr << e.what() << std::endl;
+        return 1;
+    } catch(...) {
         return 1;
     }
-    const Summary summary = summarize(frames, frame_count);
-    print_summary(summary);
 
     return 0;
 }
