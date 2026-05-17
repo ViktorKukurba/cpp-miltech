@@ -58,12 +58,12 @@ void printPositions(NRKPos* pos, int count) {
     }
 }
 
-void calculate(char* fileName) {
+int calculate(char* fileName) {
     ifstream file(fileName);
 
     if (!file) {
-        cerr << "No file";
-        return;
+        cerr << "No file\n";
+        return 1;
     }
 
     int count = 0;
@@ -71,10 +71,8 @@ void calculate(char* fileName) {
     NRKState prev;
     NRKState state;
     NRKPos prevPos = NRKPos { .timestamp_ms = 0, .x = 0, .y = 0, .theta = 0 };
-    printPosition(prevPos);
 
     while (file >> state.timestamp_ms >> state.fl_ticks >> state.fr_ticks >> state.bl_ticks >> state.br_ticks) {
-        
         if (count > 0) {
             prevPos = calculatePos(state, prev, prevPos);
             printPosition(prevPos);
@@ -88,6 +86,8 @@ void calculate(char* fileName) {
 
         count++;
     }
+
+    return 0;
 }
 
 int main(int argc, char** argv) {
@@ -98,8 +98,7 @@ int main(int argc, char** argv) {
     }
 
     char* filePath = argv[1];
-    calculate(filePath);
-    return 0;
+    return calculate(filePath);
 }
 
 
