@@ -2,6 +2,7 @@
 #include <iostream>
 #include <ostream>
 #include <cmath>
+#include <sstream>
 
 using namespace std;
 
@@ -48,14 +49,8 @@ NRKPos calculatePos(const NRKState& curr, const NRKState& prev, const NRKPos& pr
         };
 }
 
-void printPosition(const NRKPos& pos) {
-    cout << pos.timestamp_ms << " " << pos.x << " " << pos.y << " " << pos.theta << endl; 
-}
-
-void printPositions(NRKPos* pos, int count) {
-    for (int i = 0; i < count; i++) {
-        printPosition(pos[i]);
-    }
+void addPosition(const NRKPos& pos, stringstream& result) {
+    result << pos.timestamp_ms << " " << pos.x << " " << pos.y << " " << pos.theta << endl; 
 }
 
 int calculate(char* fileName) {
@@ -71,11 +66,21 @@ int calculate(char* fileName) {
     NRKState prev;
     NRKState state;
     NRKPos prevPos = NRKPos { .timestamp_ms = 0, .x = 0, .y = 0, .theta = 0 };
-
-    while (file >> state.timestamp_ms >> state.fl_ticks >> state.fr_ticks >> state.bl_ticks >> state.br_ticks) {
+    string line;
+    stringstream lineStream;
+    stringstream result;
+    
+    while (getline(file, line)) {
+        string extra;
+        lineStream.clear(); 
+        lineStream.str(line);
+        if (!(lineStream >> state.timestamp_ms >> state.fl_ticks >> state.fr_ticks >> state.bl_ticks >> state.br_ticks && !(lineStream >> extra))) {
+            cerr << "Bad input data in file\n";
+            return 2;
+        }
         if (count > 0) {
             prevPos = calculatePos(state, prev, prevPos);
-            printPosition(prevPos);
+            addPosition(prevPos, result);
         }
 
         prev.bl_ticks = state.bl_ticks;
@@ -86,6 +91,8 @@ int calculate(char* fileName) {
 
         count++;
     }
+
+    cout << result.str();
 
     return 0;
 }
@@ -99,72 +106,4 @@ int main(int argc, char** argv) {
 
     char* filePath = argv[1];
     return calculate(filePath);
-}
-
-
-// Deprecated array solution
-
-void readFile(char* fileName, NRKState* states, int& count) {
-    ifstream file(fileName);
-
-    if (!file) {
-        cerr << "No file";
-        return;
-    }
-
-    count = -1;
-
-    do {
-        states[++count] = NRKState {};
-    }
-    while (file >> states[count].timestamp_ms >> states[count].fl_ticks >> states[count].fr_ticks >> states[count].bl_ticks >> states[count].br_ticks);
-}
-
-void calculatePositions(NRKState* states, NRKPos* positions, int count) {
-    positions[0] = NRKPos {
-        .timestamp_ms = states[0].timestamp_ms,
-        .x = 0,
-        .y = 0,
-        .theta = 0
-    };
-
-    for (int i = 1; i < count; i++) {
-        NRKState curr = states[i];
-        NRKState prev = states[i - 1];
-
-        positions[i] = calculatePos(curr, prev, positions[i - 1]);
-    }
-}
-
-void printStates(NRKState* states, int count) {
-    cout << "States: " << endl;
-    for (int i = 0; i < count; i++) {
-        cout << states[i].timestamp_ms << " ";
-        cout << states[i].fl_ticks << " ";
-        cout << states[i].fr_ticks << " ";
-        cout << states[i].bl_ticks << " ";
-        cout << states[i].br_ticks << endl;
-    }
-    cout << "====" << endl;
-}
-
-int main2(int argc, char** argv) {
-    // The program expects exactly one argument: a path to telemetry samples.
-    if (argc != 2) {
-        std::cerr << "usage: ugv_odometry <input_path>\n";
-        return 1;
-    }
-
-    char* filePath = argv[1];
-    NRKState* states = new NRKState[100];
-    int count = 0;
-
-    readFile(filePath, states, count);
-    // printStates(states, count);
-
-    NRKPos* positions = new NRKPos[100];
-    calculatePositions(states, positions, count);
-    printPositions(positions, count);
-
-    return 0;
 }
