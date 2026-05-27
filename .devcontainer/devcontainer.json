@@ -99,7 +99,11 @@
             "path": "/bin/bash",
             "overrideName": true
           }
-        }
+        },
+        "editor.formatOnSave": true,
+        "C_Cpp.clang_format_style": "file",
+        "C_Cpp.clang_format_fallbackStyle": "Google",
+        "C_Cpp.clang_format_path": "clang-format"
       }
     }
   }
