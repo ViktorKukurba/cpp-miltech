@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(mission_processor_lib src/mission_processor.cpp)
+add_library(mission_processor_lib src/MissionProcessor.cpp)
 target_include_directories(mission_processor_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_executable(mission_processor src/main.cpp)
