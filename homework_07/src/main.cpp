@@ -13,11 +13,14 @@ int main()
     mission.init(configSource);
     vector<SimStep> steps = mission.simulation();
     saveSimulation(steps);
+
+    delete analytical;
+    delete provider;
+    delete configSource;
   }
   catch (...) {
     cerr << "Error" << endl;
     return 1;
   }
-
   return 0;
 }
