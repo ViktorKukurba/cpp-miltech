@@ -1,22 +1,21 @@
+#include <memory>
 #include "MissionProcessor.cpp"
 #include "config/ComponentFactory.cpp"
-#include "utils.cpp"
+#include "interfaces/IConfigLoader.hpp"
+#include "interfaces/ITargetProvider.hpp"
+#include "utils.hpp"
 
 int main()
 {
   try {
-    auto analytical = createSolver(SolverType::ANALYTICAL);
-    auto provider = createProvider(ProviderType::JSON, "homework_07/data/targets.json");
-    auto configSource = createLoader(LoaderType::FILE);
+    unique_ptr<IBallisticSolver> analytical = createSolver(SolverType::TABLE);
+    unique_ptr<ITargetProvider> provider = createProvider(ProviderType::JSON, "homework_07/data/targets.json");
+    unique_ptr<IConfigLoader> configSource = createLoader(LoaderType::FILE);
 
-    MissionProcessor mission(analytical, provider);
-    mission.init(configSource);
+    MissionProcessor mission(std::move(analytical), std::move(provider));
+    mission.init(std::move(configSource));
     vector<SimStep> steps = mission.simulation();
-    saveSimulation(steps);
-
-    delete analytical;
-    delete provider;
-    delete configSource;
+    Utils::saveSimulation(steps);
   }
   catch (...) {
     cerr << "Error" << endl;

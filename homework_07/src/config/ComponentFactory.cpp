@@ -10,24 +10,30 @@
 #include "../providers/JsonTargetProvider.cpp"
 
 #include "iostream"
+#include "../solvers/TableSolver.cpp"
 
-const map<LoaderType, function<IConfigLoader*()>> loaderFactories = {{LoaderType::FILE, []() { return new FileConfigLoader; }}};
-const map<ProviderType, function<ITargetProvider*(const std::string&)>> providerFactories = {
-  {ProviderType::JSON, [](const string param) { return new JsonTargetProvider(param); }}};
-const map<SolverType, function<IBallisticSolver*()>> solverFactories = {{SolverType::ANALYTICAL, []() { return new AnalyticalSolver; }}};
+const map<LoaderType, function<std::unique_ptr<IConfigLoader>()>> loaderFactories = {
+  {LoaderType::FILE, []() { return std::make_unique<FileConfigLoader>(); }}};
 
-IConfigLoader* createLoader(LoaderType type)
+const map<ProviderType, function<std::unique_ptr<ITargetProvider>(const std::string)>> providerFactories = {
+  {ProviderType::JSON, [](const std::string param) { return std::make_unique<JsonTargetProvider>(param); }}};
+
+const map<SolverType, function<std::unique_ptr<IBallisticSolver>()>> solverFactories = {
+  {SolverType::ANALYTICAL, []() { return std::make_unique<AnalyticalSolver>(); }},
+  {SolverType::TABLE, []() { return std::make_unique<TableSolver>(); }}};
+
+std::unique_ptr<IConfigLoader> createLoader(LoaderType type)
 {
   return loaderFactories.at(type)();
 };
 
-ITargetProvider* createProvider(ProviderType type, const string param)
+std::unique_ptr<ITargetProvider> createProvider(ProviderType type, const string param)
 {
   cout << param;
   return providerFactories.at(type)(param);
 };
 
-IBallisticSolver* createSolver(SolverType type)
+std::unique_ptr<IBallisticSolver> createSolver(SolverType type)
 {
   return solverFactories.at(type)();
 };

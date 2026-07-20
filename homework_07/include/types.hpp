@@ -82,3 +82,12 @@ struct DroneConfig {
 };
 
 enum DroneState { STOPPED, ACCELERATING, DECELERATING, TURNING, MOVING };
+
+struct DroneContext {
+  float desiredDir;
+  float direction;
+  float targetDir;
+  float turnRemaining;
+  float speed;
+  DroneConfig cfg;
+};

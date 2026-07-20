@@ -1,11 +1,13 @@
 #include "json.hpp"
 #include "types.hpp"
+#include "utils.hpp"
+#include <iostream>
 #include "fstream"
 
 using json = nlohmann::json;
 using namespace std;
 
-const char* SIMULATION_FILE = "data/simulation.json";
+namespace Utils {
 
 void saveSimulation(vector<SimStep> steps)
 {
@@ -23,6 +25,13 @@ void saveSimulation(vector<SimStep> steps)
     step["predictedTarget"] = {{"x", s.predictedTarget.x}, {"y", s.predictedTarget.y}};
     out["steps"].push_back(step);
   }
-  std::ofstream fout(SIMULATION_FILE);
+  std::ofstream fout("homework_07/data/simulation.json");
+  std::cout << "SAVED";
   fout << out.dump(2);
 }
+
+float normalizeAngle(float theta)
+{
+  return abs(atan2(sin(theta), cos(theta)));
+}
+}  // namespace Utils

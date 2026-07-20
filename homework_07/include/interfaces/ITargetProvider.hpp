@@ -9,5 +9,5 @@ public:
   virtual int getTimeSteps() = 0;
   virtual vector<Coord> getTarget(int index) = 0;
   virtual Coord getTargetCoord(int index, float) = 0;
-  virtual ~ITargetProvider() {}
+  virtual ~ITargetProvider() = default;
 };
