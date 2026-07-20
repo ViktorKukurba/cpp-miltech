@@ -1,27 +1,10 @@
+#pragma once
+
+#include <cmath>
 #include <optional>
-#include <iostream>
-#include "json.hpp"
-
-#define ENABLE_LOG 1
-#define ENABLE_DEBUG 0
-
-#if ENABLE_LOG
-#define LOG(msg) std::cout << "[LOG] " << msg << std::endl
-#else
-#define LOG(msg)
-#endif
-
-#if ENABLE_DEBUG
-#define DEBUG(msg) std::cout << "[DEBUG] " << msg << std::endl
-#else
-#define DEBUG(msg)
-#endif
-
-using json = nlohmann::json;
+#include <string>
 
 using namespace std;
-
-const char* SIMULATION_FILE = "data/simulation.json";
 
 struct Coord {
   float x;
@@ -67,14 +50,8 @@ struct Coord {
   }
 };
 
-struct SolverResult {
-  Coord interpolatedTargetPos;
-  Coord balisticPoint;
-  float timeToPos;
-};
-
 struct AmmoParams {
-  char name[32];
+  string name;
   float mass;  // маса (кг)
   float drag;  // коефіцієнт опору
   float lift;  // коефіцієнт підйому
@@ -96,7 +73,7 @@ struct DroneConfig {
   float initialDir;     // початковий напрямок (рад)
   float attackSpeed;    // швидкість атаки (м/с)
   float accelPath;      // шлях розгону (м)
-  char ammoName[32];    // обрані боєприпаси
+  string ammoName;      // обрані боєприпаси
   float arrayTimeStep;  // крок часу масиву цілей
   float simTimeStep;    // крок симуляції
   float hitRadius;      // радіус влучення
@@ -105,53 +82,3 @@ struct DroneConfig {
 };
 
 enum DroneState { STOPPED, ACCELERATING, DECELERATING, TURNING, MOVING };
-
-// const uint8_t TIME_STEP_SIZE = 60;
-const uint16_t MAX_STEPS = 10000;
-const double G = 9.81;
-inline void printDelimiter()
-{
-  cout << "===============================================" << '\n' << '\n';
-};
-
-struct AmmunitionDef {
-  double m;
-  double d;
-  double l;
-  bool type;
-};
-
-class ITargetProvider {
-public:
-  virtual int getTargetCount() = 0;
-  virtual int getTimeSteps() = 0;
-  virtual Coord* getTarget(int index) = 0;
-  virtual Coord getTargetCoord(int index, float) = 0;
-  virtual ~ITargetProvider() {}
-};
-
-class IBallisticSolver {
-public:
-  virtual SolverResult solve(const DroneConfig& config,
-                             const Coord& dronePos,
-                             const Coord& targetPos,
-                             const Coord& targetPrevPos,
-                             AmmoParams ammo,
-                             int timeStepSize) = 0;
-  virtual ~IBallisticSolver() {}
-};
-
-class IConfigLoader {
-public:
-  virtual void load() = 0;
-  virtual DroneConfig getConfig() = 0;
-  virtual AmmoParams getAmmoParams() = 0;
-};
-
-enum class SolverType { ANALYTICAL };
-enum class ProviderType { JSON };
-enum class LoaderType { FILE };
-
-IBallisticSolver* createSolver(SolverType type);
-ITargetProvider* createProvider(ProviderType type, const char* param);
-IConfigLoader* createLoader(LoaderType type);
