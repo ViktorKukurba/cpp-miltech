@@ -1,23 +1,26 @@
 #include <cmath>
 #include <iostream>
+#include <memory>
 #include <ostream>
 #include <vector>
 #include "interfaces/ITargetProvider.hpp"
+#include "interfaces/states/StateStopped.hpp"
 #include "MissionProcessor.hpp"
+#include "utils.hpp"
 
 class MissionProcessor : public IMissionProcessor {
 private:
-  IBallisticSolver* solver;  // стратегія
-  ITargetProvider* targets;
+  std::unique_ptr<IBallisticSolver> solver;  // стратегія
+  std::unique_ptr<ITargetProvider> targets;
 
 public:
-  MissionProcessor(IBallisticSolver* s, ITargetProvider* t)
-    : solver(s)
-    , targets(t)
+  MissionProcessor(std::unique_ptr<IBallisticSolver> s, std::unique_ptr<ITargetProvider> t)
+    : solver(std::move(s))
+    , targets(std::move(t))
   {
   }
 
-  void init(IConfigLoader* configSource) override
+  void init(unique_ptr<IConfigLoader> configSource) override
   {
     configSource->load();
     ammo = configSource->getAmmoParams();
@@ -29,6 +32,8 @@ public:
     steps[0] = SimStep{.pos = droneConfig.startPos, .direction = droneConfig.initialDir, .state = DroneState::STOPPED};
 
     stepCount++;
+
+    state = std::make_unique<StateStopped>();
 
     while (hasNext()) {
       steps[stepCount] = step();
@@ -72,18 +77,15 @@ public:
     double delta = getDelta(theta, newSimStep.direction);
     float speed = getCurrentSpeed(steps, stepCount, droneConfig);
 
-    if ((delta > droneConfig.turnThreshold) && (speed > 0)) {
-      decelerateDrone(droneConfig, newSimStep, speed);
-    }
-    else if ((delta > droneConfig.turnThreshold) && (newSimStep.state == DroneState::STOPPED || newSimStep.state == DroneState::TURNING)) {
-      turnDrone(droneConfig, newSimStep, theta);
-    }
-    else if (speed < droneConfig.attackSpeed) {
-      acelerateDrone(droneConfig, newSimStep, speed);
-    }
-    else {
-      moveDrone(droneConfig, newSimStep);
-    }
+    DroneContext ctx({.desiredDir = theta, .direction = newSimStep.direction, .speed = speed, .cfg = droneConfig});
+    auto next = state->execute(ctx);
+
+    if (next)
+      state = std::move(next);
+
+    newSimStep.direction = ctx.direction;
+    newSimStep.pos = newSimStep.pos.move(ctx.direction, droneConfig.simTimeStep, ctx.speed);
+    newSimStep.state = state->type();
 
     currentTime += droneConfig.simTimeStep;
     return newSimStep;
@@ -91,7 +93,7 @@ public:
 
   void reset() override { stepCount = 0; }
 
-  void changeSolver(IBallisticSolver* s) override { solver = s; }
+  void changeSolver(unique_ptr<IBallisticSolver> s) override { solver = std::move(s); }
 
   bool hasNext() override { return stepCount < MAX_STEPS; }  // MAX_STEPS
 
@@ -103,6 +105,7 @@ private:
   DroneConfig droneConfig;
   float currentTime = 0;
   vector<SimStep> steps = vector<SimStep>(MAX_STEPS);
+  std::unique_ptr<IDroneState> state;
 
   float getTheta(const Coord& a, const Coord& b)
   {
@@ -111,8 +114,6 @@ private:
   }
 
   float getDelta(float thetaA, float thetaB) { return abs(atan2(sin(thetaA - thetaB), cos(thetaA - thetaB))); }
-
-  float normalizeTheta(float theta) { return abs(atan2(sin(theta), cos(theta))); }
 
   float calculateTurn(float currentTheta, float targetTheta, float angularSpeed, float dt)
   {
@@ -163,7 +164,7 @@ private:
   void turnDrone(const DroneConfig& config, SimStep& step, float theta)
   {
     step.state = DroneState::TURNING;
-    step.direction = normalizeTheta(calculateTurn(step.direction, theta, config.angularSpeed, config.simTimeStep));
+    step.direction = Utils::normalizeAngle(calculateTurn(step.direction, theta, config.angularSpeed, config.simTimeStep));
   }
 
   void acelerateDrone(const DroneConfig& config, SimStep& step, float speed)

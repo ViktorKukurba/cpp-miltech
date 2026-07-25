@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <vector>
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/IConfigLoader.hpp"
@@ -27,11 +28,11 @@ const uint16_t MAX_STEPS = 10000;
 class IMissionProcessor {
 public:
   virtual ~IMissionProcessor() = default;
-  virtual void init(IConfigLoader* configSource) = 0;
+  virtual void init(unique_ptr<IConfigLoader> configSource) = 0;
   virtual vector<SimStep> simulation() = 0;
   virtual SimStep step() = 0;
   virtual void reset() = 0;
-  virtual void changeSolver(IBallisticSolver* s) = 0;
+  virtual void changeSolver(unique_ptr<IBallisticSolver> s) = 0;
   virtual bool hasNext() = 0;
   virtual int getStepsCount() = 0;
 };

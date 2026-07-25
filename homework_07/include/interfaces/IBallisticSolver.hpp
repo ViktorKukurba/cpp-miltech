@@ -16,5 +16,5 @@ public:
                              const Coord& targetPrevPos,
                              AmmoParams ammo,
                              int timeStepSize) = 0;
-  virtual ~IBallisticSolver() {}
+  virtual ~IBallisticSolver() = default;
 };

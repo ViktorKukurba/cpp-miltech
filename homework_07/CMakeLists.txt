@@ -9,7 +9,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(mission_processor_lib src/MissionProcessor.cpp)
+add_library(
+    mission_processor_lib
+    src/MissionProcessor.cpp
+    src/states/StateStopped.cpp
+    src/states/StateAccelerating.cpp
+    src/states/StateMoving.cpp
+    src/states/StateTurning.cpp
+    src/states/StateDecelerating.cpp
+    src/utils.cpp)
 target_include_directories(mission_processor_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_executable(mission_processor src/main.cpp)
