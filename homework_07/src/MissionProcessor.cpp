@@ -1,8 +1,8 @@
 #include <cmath>
-#include <iostream>
 #include <memory>
-#include <ostream>
+#include <thread>
 #include <vector>
+#include "interfaces/IDronePhysics.hpp"
 #include "interfaces/ITargetProvider.hpp"
 #include "interfaces/states/StateStopped.hpp"
 #include "MissionProcessor.hpp"
@@ -10,41 +10,35 @@
 
 class MissionProcessor : public IMissionProcessor {
 private:
-  std::unique_ptr<IBallisticSolver> solver;  // стратегія
-  std::unique_ptr<ITargetProvider> targets;
+  unique_ptr<IBallisticSolver> solver;  // стратегія
+  unique_ptr<ITargetProvider> targets;
+  unique_ptr<IDronePhysics> drone;
 
 public:
-  MissionProcessor(std::unique_ptr<IBallisticSolver> s, std::unique_ptr<ITargetProvider> t)
+  MissionProcessor(std::unique_ptr<IBallisticSolver> s, std::unique_ptr<ITargetProvider> t, unique_ptr<IDronePhysics> d)
     : solver(std::move(s))
     , targets(std::move(t))
+    , drone(std::move(d))
   {
-  }
-
-  void init(unique_ptr<IConfigLoader> configSource) override
-  {
-    configSource->load();
-    ammo = configSource->getAmmoParams();
-    droneConfig = configSource->getConfig();
   }
 
   vector<SimStep> simulation() override
   {
-    steps[0] = SimStep{.pos = droneConfig.startPos, .direction = droneConfig.initialDir, .state = DroneState::STOPPED};
-
+    steps[0] = SimStep{.pos = drone->getPos(), .direction = drone->getDir(), .state = DroneState::STOPPED};
     stepCount++;
-
     state = std::make_unique<StateStopped>();
-
+    float simTimeStep = drone->getConfig().simTimeStep;
+    float timeScale = drone->getConfig().timeScale;
     while (hasNext()) {
+      std::this_thread::sleep_for(std::chrono::duration<float>(simTimeStep / timeScale));
       steps[stepCount] = step();
-      LOG_Step(steps[stepCount], stepCount);
-      if (canHit(droneConfig, steps[stepCount])) {
+      // LOG_Step(steps[stepCount], stepCount);
+      if (canHit(drone->getConfig(), steps[stepCount])) {
         break;
       }
-
       stepCount++;
     }
-
+    steps.resize(stepCount + 1);
     return steps;
   }
 
@@ -54,40 +48,27 @@ public:
     SimStep simStep = steps[stepCount - 1];
     SimStep newSimStep =
       SimStep{.pos = simStep.pos, .direction = simStep.direction, .state = simStep.state, .targetIdx = simStep.targetIdx};
-
     vector<SolverResult> results(targetsCount);
     uint8_t selectedTargetIdx = 0;
     for (size_t i = 0; i < targetsCount; i++) {
-      int idx = (int)floor(currentTime / droneConfig.arrayTimeStep) % targets->getTimeSteps();
-      const Coord targetPos = targets->getTargetCoord(i, idx);
-      const Coord targetPrevPos = targets->getTargetCoord(i, idx - 1);
-      SolverResult res = solver->solve(droneConfig, newSimStep.pos, targetPos, targetPrevPos, ammo, targets->getTimeSteps());
+      const Target target = targets->getTarget(i);
+      SolverResult res = solver->solve(drone->getConfig(), drone->getPos(), target, drone->getAmmo());
       results.at(i) = res;
-      cout << "Time:" << res.timeToPos << endl;
       if (results.at(selectedTargetIdx).timeToPos > res.timeToPos) {
         selectedTargetIdx = i;
       }
     }
-
     newSimStep.predictedTarget = results.at(selectedTargetIdx).interpolatedTargetPos;
     newSimStep.dropPoint = results.at(selectedTargetIdx).balisticPoint;
     newSimStep.targetIdx = selectedTargetIdx;
 
     float theta = getTheta(newSimStep.pos, newSimStep.predictedTarget);
-    double delta = getDelta(theta, newSimStep.direction);
-    float speed = getCurrentSpeed(steps, stepCount, droneConfig);
+    drone->cmd(DroneCommand{.dir = theta});
 
-    DroneContext ctx({.desiredDir = theta, .direction = newSimStep.direction, .speed = speed, .cfg = droneConfig});
-    auto next = state->execute(ctx);
-
-    if (next)
-      state = std::move(next);
-
-    newSimStep.direction = ctx.direction;
-    newSimStep.pos = newSimStep.pos.move(ctx.direction, droneConfig.simTimeStep, ctx.speed);
-    newSimStep.state = state->type();
-
-    currentTime += droneConfig.simTimeStep;
+    newSimStep.direction = drone->getDir();
+    newSimStep.state = drone->getState();
+    newSimStep.pos = drone->getPos();
+    currentTime += drone->getConfig().simTimeStep;
     return newSimStep;
   }
 
@@ -99,42 +80,40 @@ public:
 
   int getStepsCount() override { return stepCount; }
 
+  bool isThreadReady() override { return stepCount == 0; }
+  bool start() override
+  {
+    if (isThreadReady()) {
+      started = true;
+      return true;
+    }
+    return started;
+  }
+
+  bool stop() override
+  {
+    started = false;
+    return started;
+  }
+
+  void run() override
+  {
+    vector<SimStep> steps = simulation();
+    Utils::saveSimulation(steps);
+  }
+
 private:
   int stepCount = 0;
-  AmmoParams ammo;
-  DroneConfig droneConfig;
   float currentTime = 0;
   vector<SimStep> steps = vector<SimStep>(MAX_STEPS);
   std::unique_ptr<IDroneState> state;
+  bool started = false;
 
   float getTheta(const Coord& a, const Coord& b)
   {
     Coord delta = b - a;
     return atan2(delta.y, delta.x);
   }
-
-  float getDelta(float thetaA, float thetaB) { return abs(atan2(sin(thetaA - thetaB), cos(thetaA - thetaB))); }
-
-  float calculateTurn(float currentTheta, float targetTheta, float angularSpeed, float dt)
-  {
-    float delta = targetTheta - currentTheta;
-
-    // Normalize
-    while (delta > M_PI)
-      delta -= 2 * M_PI;
-    while (delta < -M_PI)
-      delta += 2 * M_PI;
-
-    float turnStep = angularSpeed * dt;
-    if (abs(delta) > turnStep) {
-      delta = (delta > 0 ? 1 : -1) * turnStep;
-    }
-    LOG("TURN: " + to_string(currentTheta) + " -> " + to_string(targetTheta) + " res: " + to_string(currentTheta + delta));
-    currentTheta += delta;
-    return currentTheta;
-  }
-
-  // ===
 
   // === LOG functions
   void LOG_Coord(const Coord& c) { LOG("Coords: x=" + to_string(c.x) + "; y=" + to_string(c.y)); }
@@ -146,52 +125,6 @@ private:
     LOG("Direction: " + to_string(step.direction));
     LOG("State: " + to_string(step.state));
     LOG("Target: " + to_string(step.targetIdx));
-  }
-
-  void decelerateDrone(const DroneConfig& config, SimStep& step, float speed)
-  {
-    step.state = DroneState::DECELERATING;
-
-    const float a = -config.attackSpeed * config.attackSpeed / (2 * config.accelPath);
-    speed = speed + a * config.simTimeStep;
-    if (speed <= 0) {
-      speed = 0;
-      step.state = DroneState::STOPPED;
-    }
-    step.pos = step.pos.move(step.direction, config.simTimeStep, speed);
-  }
-
-  void turnDrone(const DroneConfig& config, SimStep& step, float theta)
-  {
-    step.state = DroneState::TURNING;
-    step.direction = Utils::normalizeAngle(calculateTurn(step.direction, theta, config.angularSpeed, config.simTimeStep));
-  }
-
-  void acelerateDrone(const DroneConfig& config, SimStep& step, float speed)
-  {
-    step.state = DroneState::ACCELERATING;
-    const float a = config.attackSpeed * config.attackSpeed / (2 * config.accelPath);
-    speed = speed + a * config.simTimeStep;
-    if (speed >= config.attackSpeed) {
-      speed = config.attackSpeed;
-      step.state = DroneState::MOVING;
-    }
-    step.pos = step.pos.move(step.direction, config.simTimeStep, speed);
-  }
-
-  void moveDrone(const DroneConfig& config, SimStep& step)
-  {
-    step.state = DroneState::MOVING;
-    step.pos = step.pos.move(step.direction, config.simTimeStep, config.attackSpeed);
-  }
-
-  float getCurrentSpeed(vector<SimStep> steps, int step, const DroneConfig& config)
-  {
-    if (step < 2) {
-      return 0;
-    }
-    const float speed = Coord::getDistance(steps.at(step - 1).pos, steps.at(step - 2).pos) / config.simTimeStep;
-    return speed;
   }
 
   bool canHit(const DroneConfig& config, const SimStep& step)

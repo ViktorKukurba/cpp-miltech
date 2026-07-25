@@ -79,6 +79,9 @@ struct DroneConfig {
   float hitRadius;      // радіус влучення
   float angularSpeed;   // кутова швидкість (рад/с)
   float turnThreshold;  // поріг повороту (рад)
+  float targetTimeStep;
+  float physicsTimeStep;
+  float timeScale;
 };
 
 enum DroneState { STOPPED, ACCELERATING, DECELERATING, TURNING, MOVING };
@@ -90,4 +93,21 @@ struct DroneContext {
   float turnRemaining;
   float speed;
   DroneConfig cfg;
+};
+
+struct Target {
+  Coord pos;       // поточна позиція цілі
+  Coord velocity;  // поточна швидкість цілі
+};
+
+struct DroneCommand {
+  DroneState state;  // новий режим
+  float angleSpeed;  // Кутова швидкість повороту
+  float dir;
+};
+
+struct DroneTelemetry {
+  Coord pos;
+  Coord speed;
+  float timeSecSinceStart;
 };

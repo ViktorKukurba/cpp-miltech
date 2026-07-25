@@ -10,11 +10,6 @@ struct SolverResult {
 
 class IBallisticSolver {
 public:
-  virtual SolverResult solve(const DroneConfig& config,
-                             const Coord& dronePos,
-                             const Coord& targetPos,
-                             const Coord& targetPrevPos,
-                             AmmoParams ammo,
-                             int timeStepSize) = 0;
+  virtual SolverResult solve(const DroneConfig& config, const Coord& dronePos, const Target& target, AmmoParams ammo) = 0;
   virtual ~IBallisticSolver() = default;
 };

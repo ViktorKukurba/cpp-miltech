@@ -1,33 +1,24 @@
 #pragma once
 
+#include "solvers/AnalyticalSolver.hpp"
 #include <cmath>
 #include <stdexcept>
 
-#include "solvers/AnalyticalSolver.hpp"
+// #include "solvers/AnalyticalSolver.hpp"
 
 class AnalyticalSolver : public IAnalyticalSolver {
 public:
-  SolverResult solve(const DroneConfig& config,
-                     const Coord& dronePos,
-                     const Coord& targetPos,
-                     const Coord& targetPrevPos,
-                     AmmoParams ammo,
-                     int timeStepSize) override
+  SolverResult solve(const DroneConfig& config, const Coord& dronePos, const Target& target, AmmoParams ammo) override
   {
-    const float t = getTotalTimeToPos(config, dronePos, targetPos);
-    const Coord iP = getInterpolatedTargetPos(config, targetPos, targetPrevPos, t, timeStepSize);
+    const float t = getTotalTimeToPos(config, dronePos, target.pos);
+    const Coord iP = getInterpolatedTargetPos(config, target, t);
     const Coord bP = getBalisticPoint(config, dronePos, iP, ammo);
     const float tB = getTotalTimeToPos(config, dronePos, bP);
     return SolverResult{.interpolatedTargetPos = iP, .balisticPoint = bP, .timeToPos = tB};
   }
 
 private:
-  Coord getInterpolatedTargetPos(const DroneConfig& config, const Coord& target, const Coord& targetPrevPos, float t, int timeStepSize)
-  {
-    int idx = (int)floor(t / config.arrayTimeStep) % timeStepSize;
-    float frac = (t - idx * config.arrayTimeStep) / config.arrayTimeStep;
-    return target + (target - targetPrevPos) * frac;
-  }
+  Coord getInterpolatedTargetPos(const DroneConfig& config, const Target& target, float t) { return target.pos + target.velocity * t; }
 
   float getTotalTimeToPos(const DroneConfig& config, const Coord& dronePos, const Coord& target)
   {

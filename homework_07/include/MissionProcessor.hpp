@@ -5,6 +5,8 @@
 #include <vector>
 #include "interfaces/IBallisticSolver.hpp"
 #include "interfaces/IConfigLoader.hpp"
+#include "interfaces/IRunnable.hpp"
+#include "iostream"
 
 #define ENABLE_LOG 1
 #define ENABLE_DEBUG 0
@@ -25,10 +27,10 @@ using namespace std;
 
 const uint16_t MAX_STEPS = 10000;
 
-class IMissionProcessor {
+class IMissionProcessor : public IRunnable {
 public:
   virtual ~IMissionProcessor() = default;
-  virtual void init(unique_ptr<IConfigLoader> configSource) = 0;
+  // virtual void init(unique_ptr<IConfigLoader> configSource) = 0;
   virtual vector<SimStep> simulation() = 0;
   virtual SimStep step() = 0;
   virtual void reset() = 0;

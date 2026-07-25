@@ -1,7 +1,6 @@
 #include "json.hpp"
 #include "types.hpp"
 #include "utils.hpp"
-#include <iostream>
 #include "fstream"
 
 using json = nlohmann::json;
@@ -26,7 +25,6 @@ void saveSimulation(vector<SimStep> steps)
     out["steps"].push_back(step);
   }
   std::ofstream fout("homework_07/data/simulation.json");
-  std::cout << "SAVED";
   fout << out.dump(2);
 }
 

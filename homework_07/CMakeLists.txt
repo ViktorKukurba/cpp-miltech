@@ -12,12 +12,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(
     mission_processor_lib
     src/MissionProcessor.cpp
+    src/DronePhysics.cpp
+    src/config/ComponentFactory.cpp
+    src/config/FileConfigLoader.cpp
+    src/providers/JsonTargetProvider.cpp
+    src/providers/ThreadSafeTargetProvider.cpp
+    src/solvers/AnalyticalSolver.cpp
+    src/solvers/TableSolver.cpp
+    src/utils.cpp
     src/states/StateStopped.cpp
     src/states/StateAccelerating.cpp
     src/states/StateMoving.cpp
     src/states/StateTurning.cpp
-    src/states/StateDecelerating.cpp
-    src/utils.cpp)
+    src/states/StateDecelerating.cpp)
 target_include_directories(mission_processor_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_executable(mission_processor src/main.cpp)

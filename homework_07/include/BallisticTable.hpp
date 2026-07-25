@@ -7,7 +7,7 @@ struct Interp {
   float frac;  // коефіцієнт [0..1]
 };
 
-Interp findInterp(float val, const std::vector<float>& axis)
+inline Interp findInterp(float val, const std::vector<float>& axis)
 {
   if (val <= axis.front())
     return {0, 0.0f};
@@ -80,7 +80,6 @@ struct BallisticTable {
     // Порядок: Z0 → V0 → m → d → l (зовнішній → внутрішній)
     for (size_t i = 0; i < total; i++) {
       f >> data[i].t >> data[i].hDist;
-      std::cout << data[i].hDist << std::endl;
     }
 
     return f.good();

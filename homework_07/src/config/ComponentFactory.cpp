@@ -7,7 +7,8 @@
 
 #include "../config/FileConfigLoader.cpp"
 #include "../solvers/AnalyticalSolver.cpp"
-#include "../providers/JsonTargetProvider.cpp"
+// #include "../providers/JsonTargetProvider.cpp"
+#include "../providers/ThreadSafeTargetProvider.cpp"
 
 #include "iostream"
 #include "../solvers/TableSolver.cpp"
@@ -16,7 +17,7 @@ const map<LoaderType, function<std::unique_ptr<IConfigLoader>()>> loaderFactorie
   {LoaderType::FILE, []() { return std::make_unique<FileConfigLoader>(); }}};
 
 const map<ProviderType, function<std::unique_ptr<ITargetProvider>(const std::string)>> providerFactories = {
-  {ProviderType::JSON, [](const std::string param) { return std::make_unique<JsonTargetProvider>(param); }}};
+  {ProviderType::JSON, [](const std::string param) { return std::make_unique<ThreadSafeTargetProvider>(param); }}};
 
 const map<SolverType, function<std::unique_ptr<IBallisticSolver>()>> solverFactories = {
   {SolverType::ANALYTICAL, []() { return std::make_unique<AnalyticalSolver>(); }},
@@ -29,7 +30,6 @@ std::unique_ptr<IConfigLoader> createLoader(LoaderType type)
 
 std::unique_ptr<ITargetProvider> createProvider(ProviderType type, const string param)
 {
-  cout << param;
   return providerFactories.at(type)(param);
 };
 
