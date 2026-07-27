@@ -1,40 +1,73 @@
+#include <chrono>
+#include <memory>
+#include <thread>
+#include "DronePhysics.hpp"
 #include "interfaces/IConfigLoader.hpp"
 #include "interfaces/IDroneState.hpp"
 #include "interfaces/states/StateStopped.hpp"
 #include "types.hpp"
-#include "interfaces/IDronePhysics.hpp"
-#include <thread>
 
-class DronePhysics : public IDronePhysics {
-public:
-  void init(unique_ptr<IConfigLoader> configSource) override
-  {
-    configSource->load();
-    ammo = configSource->getAmmoParams();
-    config = configSource->getConfig();
-    pos = config.startPos;
-    prevPos = config.startPos;
-    dir = config.initialDir;
-    state = std::make_unique<StateStopped>();
-    isInitialized = true;
-  }
+void DronePhysics::init(std::unique_ptr<IConfigLoader> configSource)
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  configSource->load();
+  ammo = configSource->getAmmoParams();
+  config = configSource->getConfig();
+  pos = config.startPos;
+  prevPos = config.startPos;
+  dir = config.initialDir;
+  state = std::make_unique<StateStopped>();
+  isInitialized = true;
+}
 
-  void cmd(DroneCommand data) override { desiredDir = data.dir; };
+void DronePhysics::cmd(DroneCommand data)
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  desiredDir = data.dir;
+};
 
-  Coord getPos() override { return pos; }
+Coord DronePhysics::getPos()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return pos;
+}
 
-  float getDir() override { return dir; }
+float DronePhysics::getDir()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return dir;
+}
 
-  DroneState getState() override { return state->type(); }
+DroneState DronePhysics::getState()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return state->type();
+}
 
-  DroneConfig getConfig() override { return config; }
+DroneConfig DronePhysics::getConfig()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return config;
+}
 
-  AmmoParams getAmmo() override { return ammo; }
+AmmoParams DronePhysics::getAmmo()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return ammo;
+}
 
-  void run() override
-  {
-    while (started) {
-      std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
+void DronePhysics::run()
+{
+  while (true) {
+    float timeStep = 0.0f;
+
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!started) {
+        break;
+      }
+
+      timeStep = config.physicsTimeStep / config.timeScale;
       DroneContext ctx({.desiredDir = desiredDir, .direction = dir, .speed = speed, .cfg = config});
       auto next = state->execute(ctx);
       speed = ctx.speed;
@@ -45,46 +78,46 @@ public:
         state = std::move(next);
       }
     }
-  }
 
-  bool isThreadReady() override { return isInitialized; }
-  bool start() override
-  {
-    if (isThreadReady()) {
-      started = true;
-      return true;
+    if (timeStep > 0.0f) {
+      std::this_thread::sleep_for(std::chrono::duration<float>(timeStep));
     }
+  }
+}
 
-    return started;
+bool DronePhysics::isThreadReady()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  return isInitialized;
+}
+
+bool DronePhysics::start()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (isInitialized) {
+    started = true;
+    return true;
   }
 
-  bool stop() override
-  {
-    started = false;
-    return started;
-  }
+  return false;
+}
 
-private:
-  AmmoParams ammo;
-  DroneConfig config;
-  Coord prevPos;
-  Coord pos;
-  float dir;
-  float desiredDir;
-  float speed = 0;
-  std::unique_ptr<IDroneState> state;
-  bool started = false;
-  bool isInitialized = false;
+bool DronePhysics::stop()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  started = false;
+  return true;
+}
 
-  float getCurrentSpeed()
-  {
-    const float speed = Coord::getDistance(pos, prevPos) / config.physicsTimeStep;
-    return speed;
-  }
+float DronePhysics::getCurrentSpeed()
+{
+  std::lock_guard<std::mutex> lock(mutex_);
+  const float speed = Coord::getDistance(pos, prevPos) / config.physicsTimeStep;
+  return speed;
+}
 
-  void movePos()
-  {
-    prevPos = pos;
-    pos = pos.move(dir, config.physicsTimeStep, speed);
-  }
-};
+void DronePhysics::movePos()
+{
+  prevPos = pos;
+  pos = pos.move(dir, config.physicsTimeStep, speed);
+}

@@ -7,10 +7,8 @@
 
 #include "../config/FileConfigLoader.cpp"
 #include "../solvers/AnalyticalSolver.cpp"
-// #include "../providers/JsonTargetProvider.cpp"
 #include "../providers/ThreadSafeTargetProvider.cpp"
 
-#include "iostream"
 #include "../solvers/TableSolver.cpp"
 
 const map<LoaderType, function<std::unique_ptr<IConfigLoader>()>> loaderFactories = {
