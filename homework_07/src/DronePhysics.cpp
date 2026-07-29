@@ -28,66 +28,47 @@ void DronePhysics::cmd(DroneCommand data)
 
 Coord DronePhysics::getPos()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return pos;
 }
 
 float DronePhysics::getDir()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return dir;
 }
 
 DroneState DronePhysics::getState()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return state->type();
 }
 
 DroneConfig DronePhysics::getConfig()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return config;
 }
 
 AmmoParams DronePhysics::getAmmo()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return ammo;
 }
 
 void DronePhysics::run()
 {
-  while (true) {
-    float timeStep = 0.0f;
+  while (started) {
+    std::this_thread::sleep_for(std::chrono::duration<float>(config.physicsTimeStep / config.timeScale));
+    DroneContext ctx({.desiredDir = desiredDir, .direction = dir, .speed = speed, .cfg = config});
+    auto next = state->execute(ctx);
+    speed = ctx.speed;
+    dir = ctx.direction;
+    movePos();
 
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      if (!started) {
-        break;
-      }
-
-      timeStep = config.physicsTimeStep / config.timeScale;
-      DroneContext ctx({.desiredDir = desiredDir, .direction = dir, .speed = speed, .cfg = config});
-      auto next = state->execute(ctx);
-      speed = ctx.speed;
-      dir = ctx.direction;
-      movePos();
-
-      if (next) {
-        state = std::move(next);
-      }
-    }
-
-    if (timeStep > 0.0f) {
-      std::this_thread::sleep_for(std::chrono::duration<float>(timeStep));
+    if (next) {
+      state = std::move(next);
     }
   }
 }
 
 bool DronePhysics::isThreadReady()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return isInitialized;
 }
 

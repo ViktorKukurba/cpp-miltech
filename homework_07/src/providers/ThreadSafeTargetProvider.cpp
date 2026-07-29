@@ -30,12 +30,10 @@ void ThreadSafeTargetProvider::setTimeScale(float timeScale)
 }
 int ThreadSafeTargetProvider::getTargetCount()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return targetCount_;
 }
 int ThreadSafeTargetProvider::getTimeSteps()
 {
-  std::lock_guard<std::mutex> lock(mutex_);
   return timeSteps_;
 }
 
